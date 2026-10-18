@@ -1,0 +1,12 @@
+name = "bingo-h5"
+main = "worker/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+[vars]
+HELLOBOSS_GAME_ID = "bingo-h5"
