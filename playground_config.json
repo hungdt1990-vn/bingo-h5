@@ -1,0 +1,80 @@
+{
+  "schema": [
+    {
+      "name": "callIntervalSeconds",
+      "type": "number",
+      "label": "Ball Call Interval (s)",
+      "default": 3.5,
+      "min": 1.5,
+      "max": 6.0,
+      "step": 0.5
+    },
+    {
+      "name": "quickDaubWindowSeconds",
+      "type": "number",
+      "label": "Quick Reflex Window (s)",
+      "default": 1.8,
+      "min": 0.5,
+      "max": 3.0,
+      "step": 0.1
+    },
+    {
+      "name": "totalBots",
+      "type": "number",
+      "label": "Bot Competitors",
+      "default": 29,
+      "min": 5,
+      "max": 29,
+      "step": 1
+    },
+    {
+      "name": "totalPrizeSlots",
+      "type": "number",
+      "label": "Winning Prize Slots",
+      "default": 25,
+      "min": 5,
+      "max": 25,
+      "step": 1
+    },
+    {
+      "name": "autoDaubAssist",
+      "type": "boolean",
+      "label": "Auto Daub Assist",
+      "default": false
+    },
+    {
+      "name": "readyLineHighlight",
+      "type": "boolean",
+      "label": "Ready-Line Glow Assist",
+      "default": true
+    },
+    {
+      "name": "defaultMusicVolume",
+      "type": "number",
+      "label": "Default Music Volume",
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "step": 0.1
+    },
+    {
+      "name": "defaultSfxVolume",
+      "type": "number",
+      "label": "Default SFX Volume",
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "step": 0.1
+    }
+  ],
+  "values": {
+    "callIntervalSeconds": 3.5,
+    "quickDaubWindowSeconds": 1.8,
+    "totalBots": 29,
+    "totalPrizeSlots": 25,
+    "autoDaubAssist": false,
+    "readyLineHighlight": true,
+    "defaultMusicVolume": 0.5,
+    "defaultSfxVolume": 0.6
+  }
+}

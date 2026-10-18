@@ -1,0 +1,92 @@
+{
+  "title": "Bingo Royale",
+  "hook": "Compete in fast bingo showdown",
+  "game_overview": "A vibrant singleplayer bingo game featuring 1, 2, or 4 boards against 29 smart AI bots racing to claim 25 bingo reward slots.",
+  "artstyle": "cartoon",
+  "genre": "board_card",
+  "winning_condition": "Claim a Bingo line to secure one of the 25 prize ranking slots before all 25 slots are taken.",
+  "losing_condition": "All 25 Bingo slots are claimed by bots before you complete a valid Bingo pattern.",
+  "player_mode": "single_player",
+  "supported_orientations": [
+    "landscape",
+    "wide"
+  ],
+  "input_methods": [
+    "touch",
+    "mouse",
+    "keyboard"
+  ],
+  "score_options": {
+    "score_type": "points",
+    "score_order": "higher_is_better"
+  },
+  "low_end_device_support": true,
+  "mobile_playable": true,
+  "tv_playable": false,
+  "language": [
+    "en",
+    "vi"
+  ],
+  "content_descriptors": [],
+  "controls": [
+    {
+      "input": "Left Mouse Click / Tap",
+      "action": "Daub marked numbers on active bingo board cards or press Bingo shout button."
+    },
+    {
+      "input": "Key 1 / 2 / 3 / 4",
+      "action": "Quickly switch focus or highlight between boards in multi-board mode."
+    },
+    {
+      "input": "Spacebar / Bingo Button",
+      "action": "Call BINGO when a full line (horizontal, vertical, diagonal) is completed."
+    }
+  ],
+  "sections": [
+    {
+      "title": "Design Pillars",
+      "content": "1. Multi-Card Mastery: Flexible 1, 2, or 4 board modes providing scalable cognitive challenge and high engagement. 2. Real-Time Room Adrenaline: Live simulated 30-player arena (1 human + 29 bots) competing for the 25 finite winner slots with dynamic leaderboard updates. 3. Satisfying Daubing Juice: Crisp audio cues, stamp animations, particle showers, and triumphant BINGO call-out banners.",
+      "summary": "Core guiding principles for exciting multi-card bingo competition."
+    },
+    {
+      "title": "Core Loop",
+      "content": "1. Select Mode: Choose between 1, 2, or 4 boards (5x5 matrix with FREE center). 2. Enter 30-Player Room: Match with 29 virtual bot opponents who each hold the chosen number of boards. 3. Number Calling: Numbers from 1-75 (B: 1-15, I: 16-30, N: 31-45, G: 46-60, O: 61-75) are called every few seconds with animated balls. 4. Daub & Track: Click called numbers on your boards, trigger combo multipliers, and monitor rivals. 5. Claim Slot: When a row, column, or diagonal is filled, press BINGO to lock in your prize ranking among the 25 available slots before time runs out.",
+      "summary": "The moment-to-moment gameplay cycle from ball call to leaderboard ranking."
+    },
+    {
+      "title": "Room Architecture & 25-Slot Competition",
+      "content": "The match features exactly 30 players (1 human player and 29 simulated bot competitors with randomized skill levels and reaction latencies). The prize pool has exactly 25 available winning slots (1st to 25th place). As bots and the player complete lines, they claim consecutive placement slots. A live ticker and sidebar display real-time bot announcements (e.g., 'Bot Minh claimed 3rd Place! 22 slots remaining'). If all 25 slots are claimed before the player hits Bingo, the round concludes in defeat.",
+      "summary": "Mechanics governing 30 players and 25 reward slots."
+    },
+    {
+      "title": "Multi-Board Modes (1, 2, 4 Boards)",
+      "content": "Players can toggle between three game modes prior to entering a match: 1-Board (Relaxed single-card focus), 2-Board (Balanced dual-card tracking), or 4-Board (High-intensity quad-card frenzy with compact grid styling). In 4-board mode, each board is independently numbered and tracked, allowing players to score multiple Bingos in a single match for massive score bonuses.",
+      "summary": "Customizable board setups and layouts."
+    },
+    {
+      "title": "Movement & Scrolling Alignment",
+      "content": "Scrolling Axis: Static Arena (No viewport scrolling). Asset Orientation: All cards, balls, and UI components are presented orthogonally facing the player. Movement Physics Dynamics: Smooth easing animations for incoming caller balls and floating daub score popups. Camera Behavior: Locked full-viewport camera optimized for landscape desktop and tablet displays.",
+      "summary": "Static canvas layout with responsive card matrix."
+    },
+    {
+      "title": "Visual Hierarchy & Layering",
+      "content": "1. Background Layer: Atmospheric bingo hall with subtle warm ambient tones. 2. Main Stage (Playfield): Prominent Bingo Card(s) in center-right, Caller Tube and Recent Ball History Bar on top, and Active 25-Slot Leaderboard on left sidebar. 3. Callout Overlay: Large, glowing BINGO stamp button that lights up when a winning line is detected to assist player timing.",
+      "summary": "Clear distinction between caller sphere, boards, and leaderboard."
+    },
+    {
+      "title": "Fairness Tools & Power-Ups",
+      "content": "1. Number Caller History: A scrolling ticker of the last 5 drawn numbers and an overall 75-number master board toggle. 2. Ready-Line Highlight: Subtle glowing borders around numbers that would complete an active line (1-to-go / 'C\u1edd b\u1ea1c ch\u1edd'). 3. Optional Auto-Daub assist mode for accessible play, with bonus score granted for manual quick-reflex daubing.",
+      "summary": "Player assistance and accessibility aids."
+    },
+    {
+      "title": "Juice & Game Feel",
+      "content": "Anticipation Juice: Bouncing ball hopper with physics before revealing the next number. State Change Juice: Satisfying ink-stamp splash animation with particle bursts upon clicking matching numbers. Impact Juice: Golden confetti blast, celebratory trumpet fanfare, and screen vibration upon pressing the BINGO button.",
+      "summary": "Polished audio-visual feedback on daubing and winning."
+    },
+    {
+      "title": "Virtual Touch Controls Implementation",
+      "content": "All bingo cells and action buttons feature oversized touch targets (minimum 44x44px) with instant pointerDown feedback to ensure responsive play on touch devices. On mobile devices, multi-board view provides intuitive tab switching or stacked quad layout.",
+      "summary": "Mobile and tablet touch support guidelines."
+    }
+  ]
+}
