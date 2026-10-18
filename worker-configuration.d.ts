@@ -2,5 +2,7 @@
 
 interface Env {
 	HELLOBOSS_GAME_ID: "bingo-h5";
+	HELLOBOSS_PORTAL_URL: "https://helloboss.online";
+	DB: D1Database;
 	ASSETS: Fetcher;
 }

@@ -10,3 +10,9 @@ not_found_handling = "single-page-application"
 
 [vars]
 HELLOBOSS_GAME_ID = "bingo-h5"
+HELLOBOSS_PORTAL_URL = "https://helloboss.online"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "bingo-h5-db"
+database_id = "8fe346d8-e646-4cad-940b-279014139d14"

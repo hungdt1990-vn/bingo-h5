@@ -1,96 +1,120 @@
-# Game-Specific Rules and Integration Decisions — Clean Blox HTML5
+# Game-Specific Rules and Integration Decisions — Bingo Royale HTML5
 
-Tài liệu này là quy ước cụ thể cho trò chơi **Clean Blox HTML5** khi tích hợp với HelloBoss Portal (`https://helloboss.online`).
+Tài liệu này là quy ước cụ thể cho trò chơi **Bingo Royale HTML5** (`bingo-h5`) khi tích hợp với HelloBoss Portal (`https://helloboss.online`).
 
 ---
 
 ## 1. Quy trình phân tích gameplay & Đề xuất quy tắc trừ lượt
 
-### Cơ chế gameplay thực tế của Clean Blox HTML5:
-1. **Bản chất trò chơi**: Clean Blox là trò chơi giải đố xếp hình khối dạng điểm cao vô tận (endless block puzzle).
+### Cơ chế gameplay thực tế của Bingo Royale HTML5:
+1. **Bản chất trò chơi**: Bingo Royale là game Bingo thời gian thực 75 bóng đối đầu trực tiếp với 29 Bot đối thủ (tổng 30 người chơi cùng tranh 25 suất giải thưởng).
 2. **Tiến trình ván đấu**:
-   - Ván chơi bắt đầu với một bàn cờ trống (kích thước mặc định 6x6 hoặc chế độ 8x8) và 3 khối hình học ngẫu nhiên trong khay dưới đáy.
-   - Người chơi lần lượt kéo/thả các khối vào các ô trống trên bàn cờ.
-   - Khi hoàn thành 1 hoặc nhiều hàng/cột, các đường này sẽ bị phá hủy, cộng điểm và giải phóng không gian bàn cờ.
-   - Khi đặt hết 3 khối trong khay, hệ thống sẽ tự động nạp tiếp 3 khối mới (trong cùng một ván chơi).
-   - Ván chơi kết thúc (**Game Over**) khi tất cả các khối còn lại trong khay không thể đặt vừa vào bất kỳ vị trí nào trên bàn cờ.
+   - Người chơi chọn số lượng vé/thẻ tham gia (1 thẻ, 2 thẻ, hoặc 4 thẻ) tại màn hình START (nút **"ENTER SHOWDOWN"**).
+   - Vòng đấu diễn ra theo thời gian thực: Các quả bóng số từ 1 đến 75 lần lượt được gọi ra theo chu kỳ (mặc định 3.5s/bóng).
+   - Người chơi bấm chấm số (daub) trên thẻ của mình khi bóng số tương ứng xuất hiện, có thể kích hoạt cơ chế tăng tốc (Quick Reflex combos, Auto-Play, Instant Bingo).
+   - Khi hoàn thành đủ 1 đường thẳng (ngang, dọc, hoặc chéo), người chơi bấm **BINGO** để nhận giải và giành 1 suất thưởng trong tổng số 25 giải.
+   - Ván đấu kết thúc:
+     - **VICTORY**: Người chơi đã claim thành công một suất giải thưởng Bingo trước khi hết giải.
+     - **GAME OVER**: Toàn bộ 25 suất giải thưởng đã bị các Bot đối thủ giành hết mà người chơi chưa kịp Bingo.
+   - Tại màn hình kết thúc, người chơi có thể bấm **"PLAY AGAIN"** hoặc quay về Menu chính.
 
 ---
 
 ## 2. Thông tin định danh trò chơi (Game Identity)
 
-- **Tên hiển thị (Display Name)**: `Clean Blox HTML5`
-- **Game ID ổn định (HelloBoss Game ID)**: `cleanblox`
-- **Môi trường triển khai (Deployment target)**: `Node.js (Express / SQLite) & Cloudflare Workers (D1)`
-- **Frontend Framework**: `React 19 + TypeScript + Vite SPA + Tailwind CSS`
-- **Backend**: `Express (server.ts) & Cloudflare Worker (worker/index.ts)`
-- **Cơ sở dữ liệu (Game Database)**: `SQLite (node:sqlite / better-sqlite3) & Cloudflare D1` (Zero-Terminal auto-migration)
+- **Tên hiển thị (Display Name)**: `Bingo Royale HTML5`
+- **Game ID ổn định (HelloBoss Game ID)**: `bingo-h5`
+- **Tên Cloudflare Worker**: `bingo-h5`
+- **Cloudflare D1 Database ID**: `8fe346d8-e646-4cad-940b-279014139d14`
+- **Database Binding**: `DB`
+- **Frontend Framework**: `React 18 + TypeScript + Vite SPA + Tailwind CSS + Lucide Icons`
+- **Backend**: `Cloudflare Worker (worker/index.ts) & Express (server.ts cho dev/test)`
+- **Cơ sở dữ liệu (Game Database)**: `Cloudflare D1 & SQLite (Zero-Terminal auto-migration)`
 
 ---
 
 ## 3. Bảng đề xuất quy tắc sử dụng lượt chơi (Turn Policy)
 
 ### A. Các trường hợp ĐƯỢC COI LÀ BẮT ĐẦU VÁN MỚI (Tiêu tốn 1 lượt chơi)
-> Mỗi trường hợp ở bảng này bắt buộc phải gọi `POST /api/rounds/start` lên Game Backend → Server-to-Server tới HelloBoss Portal. Chỉ khởi tạo bàn cờ mới khi nhận được `200 OK`.
+> Mỗi trường hợp ở bảng này bắt buộc phải gọi `POST /api/rounds/start` lên Game Backend → Server-to-Server tới HelloBoss Portal. Chỉ khởi tạo ván cờ mới khi nhận được `200 OK`.
 
 | STT | Hành động của người chơi trên giao diện | Trạng thái ván đấu tương ứng | Xử lý khi xác nhận thành công |
 |---|---|---|---|
-| 1 | Bấm **"Chơi ngay" / "Bắt đầu ván mới"** từ màn hình chính khi chưa có ván dở | Khởi tạo ván chơi mới từ đầu | Trừ 1 lượt, lưu session ID từ HelloBoss, sinh bàn cờ trống và 3 khối mới |
-| 2 | Bấm **"PLAY AGAIN"** trên modal Game Over | Khởi động lượt chơi mới sau khi đã thua | Trừ 1 lượt, đóng modal Game Over, sinh bàn cờ mới |
-| 3 | Bấm **nút Restart (Làm lại)** trên thanh công cụ Header khi đang chơi | Người chơi chủ động hủy ván dở để chơi ván mới | Đánh dấu ván cũ `ABANDONED`, trừ 1 lượt, sinh bàn cờ mới |
-| 4 | Bấm **chuyển đổi kích thước bàn cờ** (6x6 ↔ 8x8) | Đổi chế độ chơi và reset bàn cờ mới | Đánh dấu ván cũ `ABANDONED`, trừ 1 lượt, tạo bàn cờ theo kích thước mới |
+| 1 | Bấm **"ENTER SHOWDOWN"** từ màn hình chính (START SCREEN) | Khởi tạo ván chơi Bingo mới từ đầu | Gửi `idempotencyKey`, trừ 1 lượt trên Portal, lưu `sessionId`, sinh bộ thẻ cờ và bắt đầu quay bóng |
+| 2 | Bấm **"PLAY AGAIN"** trên modal VICTORY hoặc GAME OVER | Khởi động lượt chơi Bingo mới sau khi đã kết thúc ván trước | Gửi `idempotencyKey` mới, trừ 1 lượt, đóng modal, tạo thẻ mới và bắt đầu vòng đấu mới |
+| 3 | Bấm **"Restart Game"** trong Menu cài đặt In-Game khi đang chơi | Người chơi chủ động hủy ván dở để chơi ván mới | Đánh dấu ván cũ `ABANDONED`, gửi `idempotencyKey` mới, trừ 1 lượt, sinh ván mới |
 
-### B. Các trường hợp ĐƯỢC COI LÀ TIẾP TỤC (TUYỆT ĐỐI KHÔNG TRỪ LƯỢT)
+### B. Các trường hợp ĐƯỢC COI LÀ TIẾP TỤC / MIỄN PHÍ (TUYỆT ĐỐI KHÔNG TRỪ LƯỢT)
 > Các trường hợp ở bảng này chỉ cập nhật/phục hồi dữ liệu từ database nội bộ của game. KHÔNG ĐƯỢC gọi API trừ lượt của HelloBoss.
 
 | STT | Hành động của người chơi trên giao diện | Lý do không trừ lượt | Cách xử lý trong code |
 |---|---|---|---|
-| 1 | Kéo và đặt từng khối hình từ khay lên bảng cờ | Thao tác tương tác bình thường trong ván đấu | Cập nhật bàn cờ và lưu tiến trình vào DB nội bộ |
-| 2 | Nạp thêm 3 khối mới vào khay khi đã xếp hết 3 khối cũ | Vòng lặp cơ chế tự nhiên của ván chơi hiện tại | Sinh 3 khối mới trong cùng session ID của ván |
-| 3 | F5 / Tải lại trình duyệt hoặc đóng tab mở lại | Tiếp tục ván cờ dở dang chưa Game Over | Tải lại bàn cờ, khay khối và điểm số từ DB theo `userId` |
-| 4 | Bấm "Tiếp tục chơi" khi phát hiện có ván dở | Tiếp tục ván đấu đang diễn ra | Mở lại bàn cờ và cho phép đặt tiếp các khối |
-| 5 | Mất kết nối mạng và request gửi lại (Network Retry) | Retry bảo đảm tính lũy biến (Idempotent) | Tái sử dụng cùng `idempotencyKey`, Portal trả `isRetry: true` |
-| 6 | Bật/tắt âm thanh (Mute/Unmute), xem modal Hướng dẫn (How to Play) | Tương tác giao diện phi ván chơi | Lưu vào `localStorage` hoặc settings người dùng |
-| 7 | Tra cứu số dư lượt chơi hiển thị trên giao diện | Chỉ đọc số dư hiện có | Gọi `GET /api/player/turns` (không trừ lượt) |
+| 1 | Chấm ô số (Daubing) trên thẻ khi bóng số được gọi | Thao tác tương tác chơi tự nhiên trong ván | Xử lý trực tiếp trên frontend, tính điểm combo |
+| 2 | Chuyển đổi qua lại giữa các thẻ (Card 1, 2, 3, 4) | Thao tác chuyển tab xem bàn cờ | Không làm thay đổi ván chơi, chỉ đổi UI tab active |
+| 3 | Bật / tắt hỗ trợ Auto-Play, Instant Bingo, Auto-Daub | Tính năng bổ trợ trong game | Không thay đổi vòng đời ván |
+| 4 | Bấm nút **"BINGO"** để nhận giải khi đủ đường | Hành động nhận kết quả ván đấu hiện tại | Ghi nhận rank, tính điểm thưởng ván hiện tại |
+| 5 | Tải lại trang (F5) hoặc kết nối lại khi ván đang dở dang | Tiếp tục ván chơi hiện tại | Khôi phục trạng thái ván từ DB / state mà không trừ lượt |
+| 6 | Mất kết nối mạng và request gửi lại (Network Retry) | Retry bảo đảm tính lũy biến (Idempotent) | Tái sử dụng cùng `idempotencyKey`, Portal trả `isRetry: true` không trừ thêm lượt |
+| 7 | Bật/tắt nhạc nền (BGM), hiệu ứng âm thanh (SFX), xem modal "How to Play & Rules" | Tương tác cài đặt cá nhân ngoài ván | Lưu vào cấu hình người dùng |
+| 8 | Tra cứu số dư lượt chơi hiển thị trên giao diện | Chỉ đọc số dư | Gọi `GET /api/player/turns` (không trừ lượt) |
 
 ---
 
 ## 4. Định nghĩa hoàn thành ván (Completion Criteria)
 
 - **Khi nào một ván được tính là hoàn thành?**
-  - Khi không còn bất kỳ khối nào trong khay dưới đáy có thể đặt vừa vào bất kỳ vị trí trống nào trên bàn cờ hiện tại (**Game Over**).
+  - **Thắng cuộc (VICTORY)**: Người chơi claim Bingo hợp lệ thành công và giành được 1 trong 25 suất giải thưởng.
+  - **Hết giải (GAME OVER)**: Toàn bộ 25 suất giải thưởng đã được claim hết bởi các Bot đối thủ.
 - **Hành động gửi kết quả lên HelloBoss**:
-  - Khi Game Over, Game Backend gọi `POST /api/v1/games/sessions/finish` gửi lên HelloBoss Portal:
+  - Khi ván kết thúc (VICTORY hoặc GAME OVER), Game Backend gọi `POST /api/v1/games/sessions/finish` lên HelloBoss Portal:
     - `sessionId`: Mã session từ lúc `rounds/start`.
     - `userId`: ID người chơi ổn định.
     - `outcome`: `'COMPLETED'`.
-    - `metadata`: `{ score, bestScore, linesCleared, comboMax, durationSeconds }`.
+    - `metadata`: `{ score, linesClaimed, playerRank, boardCount, durationSeconds }`.
 - **Trạng thái lưu trữ**:
   - Cập nhật trạng thái session trong DB game từ `IN_PROGRESS` thành `COMPLETED`.
 
 ---
 
-## 5. Quy tắc lưu trữ tiến trình (Persistence Policy)
+## 5. Quy tắc lưu trữ tiến trình & Database Schema (Cloudflare D1 & SQLite)
 
-- **Các trường dữ liệu cần lưu cho mỗi người chơi**:
-  - `player_profiles`: `user_id` (khóa chính), `best_score`, `total_games_played`, `sound_enabled`, `updated_at`.
-  - `game_sessions`: `id`, `user_id`, `session_id`, `idempotency_key`, `grid_size`, `board_state` (JSON), `tray_state` (JSON), `score`, `combo_streak`, `status` (`IN_PROGRESS`, `COMPLETED`, `ABANDONED`), `started_at`, `finished_at`.
-- **Ràng buộc an toàn người dùng**:
-  - Mọi thao tác truy vấn và ghi đều được lọc nghiêm ngặt theo `user_id` giải mã từ session token xác thực Server-to-Server.
-- **Xử lý ván dở dang khi vào game**:
-  - Khi người chơi mở game và đã xác thực, game kiểm tra xem có bản ghi session `IN_PROGRESS` gần nhất hay không. Nếu có, tự động nạp lại bàn cờ và cho chơi tiếp miễn phí mà không trừ lượt.
+- **Các bảng dữ liệu cần tạo (Zero-Terminal Auto-Migration)**:
+  1. `player_profiles`:
+     - `user_id TEXT PRIMARY KEY NOT NULL`
+     - `name TEXT`
+     - `best_score INTEGER DEFAULT 0`
+     - `total_games_played INTEGER DEFAULT 0`
+     - `sound_enabled INTEGER DEFAULT 1`
+     - `created_at INTEGER`
+     - `updated_at INTEGER`
+  2. `game_sessions`:
+     - `id TEXT PRIMARY KEY NOT NULL`
+     - `user_id TEXT NOT NULL`
+     - `session_id TEXT` (từ HelloBoss Portal)
+     - `idempotency_key TEXT UNIQUE`
+     - `board_count INTEGER DEFAULT 1`
+     - `score INTEGER DEFAULT 0`
+     - `status TEXT DEFAULT 'IN_PROGRESS'` (IN_PROGRESS, COMPLETED, ABANDONED)
+     - `cards_data TEXT` (JSON)
+     - `metadata TEXT` (JSON)
+     - `created_at INTEGER`
+     - `finished_at INTEGER`
+  3. `auth_tokens`:
+     - `token TEXT PRIMARY KEY NOT NULL`
+     - `user_id TEXT NOT NULL`
+     - `expires_at INTEGER NOT NULL`
+     - `created_at INTEGER NOT NULL`
 
 ---
 
 ## 6. Tiêu chí nghiệm thu (Acceptance Criteria)
 
-- [x] Đã phân tích gameplay và lập bảng đề xuất quy tắc trừ lượt.
-- [ ] Trình đề xuất cho Người dùng (Project Owner) xác nhận trước khi code.
-- [ ] Truy cập URL trực tiếp không có session hiển thị Auth Gate điều hướng về `https://helloboss.online`.
-- [ ] Bắt đầu ván mới trừ đúng 1 lượt qua HelloBoss Portal (`POST /api/rounds/start`).
-- [ ] Hết lượt chơi (`402 INSUFFICIENT_TURNS`): hiển thị modal thông báo hết lượt và ngăn tạo bàn cờ mới.
-- [ ] F5, đặt khối trong ván, nạp khay khối không làm giảm thêm lượt chơi.
-- [ ] Gửi lại request timeout với cùng `idempotencyKey` không bị trừ lượt lần hai.
-- [ ] Tiến trình và điểm số được lưu bền vững vào DB khi tải lại trang.
-- [ ] Không rò rỉ bất kỳ thông tin nhạy cảm (`X-Game-Key`, `HELLOBOSS_GAME_KEY`) ra client.
-- [ ] Bộ kiểm thử tự động của game vượt qua 100%.
+- [x] Đã phân tích gameplay và lập bảng đề xuất quy tắc trừ lượt cho Bingo Royale.
+- [ ] Trình đề xuất cho Người dùng (Project Owner) xác nhận.
+- [ ] Cập nhật `wrangler.toml` với D1 Database ID `8fe346d8-e646-4cad-940b-279014139d14`.
+- [ ] Triển khai Backend Game đầy đủ trên Cloudflare Worker (`worker/index.ts`) và local runtime.
+- [ ] Tự động khởi tạo bảng D1 (Zero-Terminal auto-migration với single-line DDL statements).
+- [ ] Triển khai Frontend Auth Gate (State A Direct Access, State B Verification Error).
+- [ ] Ref-Guarded Pre-Authorization và xử lý modal 402 Insufficient Turns trên UI.
+- [ ] Viết bộ test kiểm thử tự động đạt 9/9 kịch bản quy chuẩn.
+- [ ] Build và triển khai lên Cloudflare Workers thành công.

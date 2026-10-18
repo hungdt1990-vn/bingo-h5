@@ -26,7 +26,22 @@ import {
   VolumeX,
   X,
   Zap,
+  AlertTriangle,
+  ExternalLink,
+  Ticket,
+  LogIn,
+  LogOut,
+  RefreshCw,
 } from 'lucide-react';
+import {
+  checkSession,
+  verifyLaunchCode,
+  startRoundApi,
+  finishRoundApi,
+  logoutApi,
+  apiFetch,
+  PlayerInfo,
+} from './utils/hellobossApi';
 import {getConfig} from './constants';
 import {SpriteRenderer, SpriteAnimationState} from './SpriteRenderer';
 import BackgroundMusic from './utils/BackgroundMusic';
@@ -406,6 +421,16 @@ export default function App() {
   const autoPlayBankRef = useRef<number>(600);
   const isAutoPlayActiveRef = useRef<boolean>(false);
   isAutoPlayActiveRef.current = isAutoPlayActive;
+  // --- HELLOBOSS INTEGRATION STATE ---
+  const [authStatus, setAuthStatus] = useState<'LOADING' | 'AUTHENTICATED' | 'DIRECT_ACCESS' | 'AUTH_ERROR'>('LOADING');
+  const [authError, setAuthError] = useState<string>('');
+  const [playerInfo, setPlayerInfo] = useState<PlayerInfo | null>(null);
+  const [turnsBalance, setTurnsBalance] = useState<number>(0);
+  const [isStartingRound, setIsStartingRound] = useState<boolean>(false);
+  const isStartingRoundRef = useRef<boolean>(false);
+  const currentSessionIdRef = useRef<string | null>(null);
+  const [insufficientTurnsOpen, setInsufficientTurnsOpen] = useState<boolean>(false);
+  const [startRoundError, setStartRoundError] = useState<string | null>(null);
 
   // --- GAME STATE ---
   const [gameState, setGameState] = useState<GameState>({
@@ -525,10 +550,28 @@ export default function App() {
   useEffect(() => {
     if (gameState.status === 'GAME_OVER') {
       gameAudio.playDefeatMotif();
+      if (currentSessionIdRef.current) {
+        finishRoundApi(currentSessionIdRef.current, gameState.score, 'COMPLETED', {
+          outcome: 'GAME_OVER',
+          linesClaimed: gameState.linesClaimed,
+          playerRank: gameState.playerRank,
+          boardCount,
+          timeSeconds: gameState.timer || 0,
+        });
+      }
     } else if (gameState.status === 'VICTORY') {
       gameAudio.playVictoryFanfare();
+      if (currentSessionIdRef.current) {
+        finishRoundApi(currentSessionIdRef.current, gameState.score, 'COMPLETED', {
+          outcome: 'VICTORY',
+          linesClaimed: gameState.linesClaimed,
+          playerRank: gameState.playerRank,
+          boardCount,
+          timeSeconds: gameState.timer || 0,
+        });
+      }
     }
-  }, [gameState.status]);
+  }, [gameState.status, gameState.score, gameState.linesClaimed, gameState.playerRank, gameState.timer, boardCount]);
 
   // --- SPAWN PARTICLES & JUICE ---
   const spawnConfetti = (count = 60, originX = canvasWidth / 2, originY = canvasHeight / 2) => {
@@ -659,6 +702,81 @@ export default function App() {
       initGame();
     }
   }, [initGame]);
+
+  // --- HELLOBOSS AUTH INITIALIZATION & URL SANITIZATION ---
+  const initAuth = useCallback(async () => {
+    try {
+      const url = new URL(window.location.href);
+      const code = url.searchParams.get('code');
+      const isAutoplay = url.searchParams.has('autoplay');
+
+      if (code) {
+        // Immediate URL sanitization to prevent replay on F5
+        url.searchParams.delete('code');
+        window.history.replaceState({}, document.title, url.toString());
+
+        try {
+          const res = await verifyLaunchCode(code);
+          setPlayerInfo(res.player);
+          setTurnsBalance(res.turnsBalance ?? 0);
+          setAuthStatus('AUTHENTICATED');
+        } catch (e: any) {
+          console.error('Launch code verification failed:', e);
+          setAuthError(e.message || 'Mã xác thực không hợp lệ hoặc đã hết hạn.');
+          setAuthStatus('AUTH_ERROR');
+        }
+      } else {
+        const session = await checkSession();
+        if (session.authenticated && session.player) {
+          setPlayerInfo(session.player);
+          setTurnsBalance(session.turnsBalance ?? 0);
+          setAuthStatus('AUTHENTICATED');
+        } else if (isAutoplay) {
+          setAuthStatus('AUTHENTICATED');
+        } else {
+          setAuthStatus('DIRECT_ACCESS');
+        }
+      }
+    } catch (e: any) {
+      console.error('Auth check error:', e);
+      setAuthStatus('DIRECT_ACCESS');
+    }
+  }, []);
+
+  useEffect(() => {
+    initAuth();
+  }, [initAuth]);
+
+  // --- START ROUND WITH HELLOBOSS PRE-AUTHORIZATION ---
+  const handleStartRound = useCallback(async (isRestart = false) => {
+    if (isStartingRoundRef.current) return;
+    isStartingRoundRef.current = true;
+    setIsStartingRound(true);
+    setStartRoundError(null);
+
+    try {
+      const idempotencyKey = `bgo_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      const res = await startRoundApi(boardCount, idempotencyKey, { boardCount, isRestart });
+
+      currentSessionIdRef.current = res.sessionId;
+      if (typeof res.turnsRemaining === 'number') {
+        setTurnsBalance(res.turnsRemaining);
+      }
+
+      // Pre-authorization confirmed (200 OK) -> Start the round
+      initGame();
+    } catch (err: any) {
+      console.error('Start round failed:', err);
+      if (err.status === 402 || err.code === 'INSUFFICIENT_TURNS') {
+        setInsufficientTurnsOpen(true);
+      } else {
+        setStartRoundError(err.message || 'Không thể bắt đầu ván đấu. Vui lòng thử lại.');
+      }
+    } finally {
+      isStartingRoundRef.current = false;
+      setIsStartingRound(false);
+    }
+  }, [boardCount, initGame]);
 
   // --- CLAIM PLAYER BINGO ---
   const handleClaimBingo = useCallback(() => {
@@ -1601,6 +1719,20 @@ export default function App() {
           </button>
         </div>
 
+        {/* HelloBoss Player & Turn Balance HUD */}
+        {playerInfo && (
+          <div className="flex items-center gap-1.5 bg-slate-800/90 border border-slate-700/80 px-2.5 py-1 rounded-full text-xs shadow-inner">
+            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-amber-400 to-yellow-500 text-slate-950 flex items-center justify-center font-black text-[10px] shadow">
+              {playerInfo.name ? playerInfo.name.charAt(0).toUpperCase() : 'P'}
+            </div>
+            <span className="font-bold text-slate-200 hidden md:inline max-w-[90px] truncate">{playerInfo.name}</span>
+            <div className="flex items-center gap-1 bg-amber-400/20 text-amber-300 font-extrabold px-2 py-0.5 rounded-full border border-amber-400/40 text-[11px]">
+              <Ticket className="w-3 h-3 text-amber-400" />
+              <span>{turnsBalance}</span>
+            </div>
+          </div>
+        )}
+
         {/* Score & Menu Button */}
         <div className="flex items-center gap-3">
           <div className="text-right">
@@ -2234,7 +2366,7 @@ export default function App() {
                 type="button"
                 onClick={() => {
                   setIsGameMenuOpen(false);
-                  initGame();
+                  handleStartRound(true);
                 }}
                 className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-2.5 rounded-xl text-sm transition flex items-center justify-center gap-2 border border-slate-700">
                 <RotateCw className="w-4 h-4 text-amber-400" />
@@ -2299,15 +2431,35 @@ export default function App() {
               </div>
             </div>
 
+            {/* Start Round Error Banner */}
+            {startRoundError && (
+              <div className="w-full mb-3 bg-red-500/20 border border-red-500/50 rounded-xl p-2.5 text-xs text-red-300 flex items-center gap-2 text-left">
+                <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+                <span>{startRoundError}</span>
+              </div>
+            )}
+
             {/* Start Button */}
             <button
               ref={primaryStartBtnRef}
               type="button"
-              onClick={initGame}
+              onClick={() => handleStartRound()}
+              disabled={isStartingRound}
               autoFocus
-              className="w-full bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-black font-black py-4 rounded-2xl text-lg sm:text-xl transition-all transform hover:scale-[1.02] active:scale-95 shadow-xl flex items-center justify-center gap-2 mb-3">
-              <Play className="w-6 h-6 fill-current" />
-              ENTER SHOWDOWN
+              className={`w-full bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-black font-black py-4 rounded-2xl text-lg sm:text-xl transition-all transform hover:scale-[1.02] active:scale-95 shadow-xl flex items-center justify-center gap-2 mb-3 ${
+                isStartingRound ? 'opacity-70 cursor-wait' : ''
+              }`}>
+              {isStartingRound ? (
+                <>
+                  <RefreshCw className="w-6 h-6 animate-spin text-black" />
+                  ĐANG TRỪ LƯỢT CHƠI...
+                </>
+              ) : (
+                <>
+                  <Play className="w-6 h-6 fill-current" />
+                  ENTER SHOWDOWN (1 LƯỢT)
+                </>
+              )}
             </button>
 
             <button
@@ -2438,13 +2590,40 @@ export default function App() {
             </div>
 
             <div className="w-full flex flex-col gap-2 pointer-events-auto">
+              {startRoundError && (
+                <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-2.5 text-xs text-red-300 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 text-left">
+                    <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+                    <span>{startRoundError}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleStartRound()}
+                    className="text-[11px] font-bold underline hover:text-white shrink-0">
+                    Thử lại
+                  </button>
+                </div>
+              )}
+
               <button
                 type="button"
-                onClick={initGame}
+                onClick={() => handleStartRound()}
+                disabled={isStartingRound}
                 autoFocus
-                className="w-full bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 font-black py-3.5 rounded-2xl text-base sm:text-lg transition-transform transform active:scale-95 shadow-xl flex items-center justify-center gap-2">
-                <RotateCw className="w-5 h-5" />
-                PLAY AGAIN ({boardCount} {boardCount === 1 ? 'Card' : 'Cards'})
+                className={`w-full bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 font-black py-3.5 rounded-2xl text-base sm:text-lg transition-transform transform active:scale-95 shadow-xl flex items-center justify-center gap-2 ${
+                  isStartingRound ? 'opacity-70 cursor-wait' : ''
+                }`}>
+                {isStartingRound ? (
+                  <>
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                    ĐANG XÁC THỰC LƯỢT...
+                  </>
+                ) : (
+                  <>
+                    <RotateCw className="w-5 h-5" />
+                    PLAY AGAIN ({boardCount} {boardCount === 1 ? 'Card' : 'Cards'}) (1 LƯỢT)
+                  </>
+                )}
               </button>
 
               <button
@@ -2454,6 +2633,129 @@ export default function App() {
                 }}
                 className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 rounded-xl text-xs sm:text-sm transition border border-slate-700">
                 RETURN TO MAIN MENU
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TWO-STATE AUTH GATE: STATE A - DIRECT ACCESS */}
+      {authStatus === 'DIRECT_ACCESS' && (
+        <MenuOverlay tone="neutral">
+          <div className="w-full max-w-md bg-slate-900/95 border-2 border-amber-500/80 p-6 sm:p-8 rounded-3xl shadow-2xl flex flex-col items-center text-center backdrop-blur-xl animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-amber-400 to-yellow-600 flex items-center justify-center shadow-xl mb-3 border-2 border-amber-300">
+              <Trophy className="w-9 h-9 sm:w-11 sm:h-11 text-slate-950 fill-slate-950" />
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black text-amber-400 tracking-wide mb-2">
+              BINGO ROYALE
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-300 mb-6 leading-relaxed">
+              Vui lòng mở trò chơi từ <strong className="text-amber-400">HelloBoss Portal</strong> để tự động đồng bộ tài khoản và số dư lượt chơi của bạn.
+            </p>
+
+            <a
+              href="https://helloboss.online"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 font-black py-3.5 rounded-2xl text-base transition-transform transform active:scale-95 shadow-xl flex items-center justify-center gap-2 mb-3">
+              <ExternalLink className="w-5 h-5" />
+              Đến HelloBoss Portal
+            </a>
+
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const devRes = await apiFetch('/api/auth/dev-login', {
+                    method: 'POST',
+                    body: JSON.stringify({ name: 'Guest Tester' }),
+                  });
+                  if (devRes.token) {
+                    localStorage.setItem('bingo_token', devRes.token);
+                  }
+                  setPlayerInfo(devRes.player);
+                  setTurnsBalance(devRes.turnsBalance || 10);
+                  setAuthStatus('AUTHENTICATED');
+                } catch {
+                  setAuthStatus('AUTHENTICATED');
+                }
+              }}
+              className="text-xs text-slate-400 hover:text-slate-200 underline font-medium">
+              Chơi thử nghiệm (Dev / Guest Mode)
+            </button>
+          </div>
+        </MenuOverlay>
+      )}
+
+      {/* TWO-STATE AUTH GATE: STATE B - VERIFICATION ERROR */}
+      {authStatus === 'AUTH_ERROR' && (
+        <MenuOverlay tone="neutral">
+          <div className="w-full max-w-md bg-slate-900/95 border-2 border-red-500/80 p-6 sm:p-8 rounded-3xl shadow-2xl flex flex-col items-center text-center backdrop-blur-xl animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-red-500 to-rose-700 flex items-center justify-center shadow-xl mb-3 border-2 border-red-300">
+              <AlertTriangle className="w-9 h-9 sm:w-11 sm:h-11 text-white" />
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black text-red-400 tracking-wide mb-2">
+              XÁC THỰC KHÔNG THÀNH CÔNG
+            </h2>
+            <div className="bg-red-950/60 border border-red-800/80 rounded-xl p-3 mb-4 text-xs text-red-200 text-left font-mono break-all w-full">
+              {authError || 'Mã xác thực không hợp lệ hoặc đã hết hạn.'}
+            </div>
+
+            {authError.includes('HELLOBOSS_GAME_KEY') && (
+              <p className="text-[11px] text-amber-300/90 mb-4 bg-amber-950/40 border border-amber-800/60 rounded-lg p-2.5 text-left w-full">
+                💡 <strong>Gợi ý</strong>: Cần thiết lập biến bí mật <code>HELLOBOSS_GAME_KEY</code> trên Cloudflare Dashboard hoặc file môi trường của Worker.
+              </p>
+            )}
+
+            <div className="w-full flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => initAuth()}
+                className="w-full bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 font-black py-3 rounded-xl text-sm transition-transform transform active:scale-95 shadow-lg flex items-center justify-center gap-2">
+                <RefreshCw className="w-4 h-4" />
+                Thử lại
+              </button>
+
+              <a
+                href="https://helloboss.online"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-2.5 rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-2 border border-slate-700">
+                <ExternalLink className="w-4 h-4 text-amber-400" />
+                Quay lại HelloBoss Portal
+              </a>
+            </div>
+          </div>
+        </MenuOverlay>
+      )}
+
+      {/* INSUFFICIENT TURNS MODAL (402) */}
+      {insufficientTurnsOpen && (
+        <div className="fixed inset-0 z-[110] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-slate-900 border-2 border-amber-500 rounded-3xl p-6 shadow-2xl flex flex-col items-center text-center animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-400 to-yellow-600 flex items-center justify-center shadow-lg mb-3 border-2 border-amber-300">
+              <Ticket className="w-8 h-8 text-slate-950" />
+            </div>
+            <h3 className="text-xl font-black text-amber-400 mb-1">HẾT LƯỢT CHƠI!</h3>
+            <p className="text-xs text-slate-300 mb-5 leading-relaxed">
+              Bạn đã sử dụng hết số dư lượt chơi của trò chơi. Hãy truy cập <strong className="text-amber-400">HelloBoss Portal</strong> để nhận thêm lượt và quay lại đấu trường!
+            </p>
+
+            <div className="w-full flex flex-col gap-2">
+              <a
+                href="https://helloboss.online"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 font-black py-3 rounded-xl text-sm transition-transform transform active:scale-95 shadow-lg flex items-center justify-center gap-2">
+                <ExternalLink className="w-4 h-4" />
+                Nhận thêm lượt trên HelloBoss
+              </a>
+
+              <button
+                type="button"
+                onClick={() => setInsufficientTurnsOpen(false)}
+                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 rounded-xl text-xs border border-slate-700 transition">
+                Đóng
               </button>
             </div>
           </div>
